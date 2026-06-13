@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alpatch Example</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+        }
+        
+        .example {
+            margin-bottom: 40px;
+            border: 1px solid #e0e0e0;
+            padding: 20px;
+            border-radius: 6px;
+        }
+        
+        .example h2 {
+            font-size: 18px;
+            margin-bottom: 15px;
+            color: #555;
+        }
+        
+        .example p {
+            color: #666;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+        
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+        
+        button:hover {
+            background: #0056b3;
+        }
+        
+        button:active {
+            transform: scale(0.98);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Alpatch Examples</h1>
+
+        <div x-data class="example">
+            <h2>Patch html</h2>
+            <button @click="$get('/message')">Fetch Message</button>
+            <div id="message-box"></div>
+        </div>
+
+        <div x-data="{ count: 0 }" class="example">
+            <h2>Patch data</h2>
+            <button @click="$post('/increment')">Increment Count</button>
+            <div>Count: <span x-text="count"></span></div>
+        </div>
+
+        <div x-data="{ name: 'Alice', age: 'unknowen' }" class="example">
+            <h2>Patch data manually</h2>
+            <button 
+                @click="{ age } = await $get('/age', { payload: { name }, autoPatchData: false })"
+            >
+                Get Age
+            </button>
+            <div x-text="`Name: ${name}, Age: ${age}`"></div>
+        </div>
+    </div>
+
+    <script type="module">
+        import Alpine from 'https://esm.sh/alpinejs@3';
+        import morph from 'https://esm.sh/@alpinejs/morph@3';
+        import Alpatch from '../dist/module.esm.js';
+        
+        Alpine.plugin(morph);
+        Alpine.plugin(Alpatch);
+        Alpine.start();
+    </script>
+</body>
+</html>

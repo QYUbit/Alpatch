@@ -1,0 +1,25 @@
+{
+    "name": "alpatch",
+    "version": "0.0.0",
+    "description": "A plugin for Alpine.js for patching HTML and state from the server",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/QYUbit/Alpatch.git"
+    },
+    "author": "QYUb",
+    "license": "MIT",
+    "main": "dist/module.cjs.js",
+    "module": "dist/module.esm.js",
+    "scripts": {
+        "build": "node scripts/build.js",
+        "dev": "node scripts/build.js --watch",
+        "example": "node examples/server.js"
+    },
+    "devDependencies": {
+        "esbuild": "^0.21.x",
+        "express": "^4.x"
+    },
+    "peerDependencies": {
+        "@alpinejs/morph": "^3.x"
+    }
+}
