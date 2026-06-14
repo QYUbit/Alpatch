@@ -1,4 +1,4 @@
-import { patchElement, patchData, patchStore } from "./patch";
+import { patchElement, patchScope, patchStore } from "./patch";
 import { request } from "./request";
 
 const abortControllers = new WeakMap();
@@ -13,9 +13,9 @@ export async function patchRequest(
     {
         // Source options
         contentType = 'json',
-        formSelector,
         form,
         payload,
+        payloadSource = 'auto',
 
         // Request options
         headers = {},
@@ -29,7 +29,6 @@ export async function patchRequest(
 
         // Patch options
         autoPatchState = true,
-        autoPatchData = true,
     } = {}
 ) {
     // Debounce
@@ -62,7 +61,12 @@ export async function patchRequest(
     const queryParams = new URLSearchParams(requestUrl.search);
 
     if (contentType === 'json') {
-        const body = JSON.stringify(payload ?? Alpine.$data(el));
+        const requestPayload = payloadSource === 'auto'
+            ? payload ?? Alpine.$data(el)
+            : { ...Alpine.$data(el), ...(payload ?? {}) }
+        
+        const body = JSON.stringify(requestPayload);
+
         if (hasRequestBody(method)) {
             req.body = body;
             req.headers['Content-Type'] = 'application/json';
@@ -71,7 +75,7 @@ export async function patchRequest(
         }
 
     } else if (contentType === 'form') {
-        const formEl = form ?? el;
+        const formEl = form ?? el.closest('form');
         if (!(formEl instanceof HTMLFormElement)) {
             throw new Error(`Form element not found`);
         }
@@ -84,7 +88,7 @@ export async function patchRequest(
         const formData = new FormData(formEl);
 
         const isMultipart = formEl.getAttribute('enctype') === 'multipart/form-data'
-
+        // Browser will set the header for multipart encoding
         if (!isMultipart) {
             req.headers['Content-Type'] = 'application/x-www-form-urlencoded';
         }
@@ -125,13 +129,13 @@ export async function patchRequest(
         }
     }
 
-    if (response.data && autoPatchState && autoPatchData) {
-        patchData(Alpine, el, response.data);
+    if (response.scope && autoPatchState) {
+        patchScope(Alpine, el, response.scope);
     }
     
     if (response.store && autoPatchState) {
         patchStore(Alpine, el, response.store);
     }
 
-    return response.data;
+    return response;
 }

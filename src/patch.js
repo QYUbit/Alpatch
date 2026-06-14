@@ -5,7 +5,7 @@ export function patchElement(
         selector,
         ref,
         html,
-        strategy = 'morph',
+        strategy = 'replace',
     }
 ) {
     if (!selector && !ref) {
@@ -71,13 +71,13 @@ export function patchElement(
 
 const isPlainObject = (v) => typeof v === 'object' && v !== null && !Array.isArray(v);
 
-export function patchData(
+export function patchScope(
     Alpine,
     el,
     patch
 ) {
     if (!isPlainObject(patch)) {
-        console.error('Invalid data patch: "data" must be an object');
+        console.error('Invalid scope patch: "scope" must be an object');
         return;
     }
 
@@ -98,6 +98,7 @@ export function patchStore(
     for (const [storeName, storePatch] of Object.entries(patch)) {
         if (!isPlainObject(storePatch)) {
             console.error(`Invalid store patch: Cannot update store to a non plain object type`);
+            return;
         }
 
         const store = Alpine.store(storeName);
@@ -111,6 +112,14 @@ export function patchStore(
 }
 
 function mergePatch(target, patch) {
+    if (!isPlainObject(patch)) {
+        return patch;
+    }
+
+    if (!isPlainObject(target)) {
+        target = {};
+    }
+
     for (const key of Object.keys(patch)) {
         const value = patch[key];
 
@@ -122,4 +131,6 @@ function mergePatch(target, patch) {
             target[key] = value;
         }
     }
+
+    return target;
 }

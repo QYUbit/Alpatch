@@ -19,7 +19,7 @@ class Patch {
         });
     }
 
-    patchHTMLBySelector(selector, html, strtegy = 'morph') {
+    patchHTMLBySelector(selector, html, strategy = 'morph') {
         this.elements.push({
             selector,
             html,
@@ -28,12 +28,12 @@ class Patch {
     }
 
     patchValue(key, value) {
-        if (!this.data) this.data = {};
-        this.data[key] = value;
+        if (!this.scope) this.scope = {};
+        this.scope[key] = value;
     }
 
     patchValues(obj) {
-        this.data = { ...(this.data ?? {}), ...obj };
+        this.scope = { ...(this.scope ?? {}), ...obj };
     }
 
     patchStoreValue(key, value) {

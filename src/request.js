@@ -55,6 +55,7 @@ export async function request(
                 signal: internalController.signal
             });
 
+            // All responses with a status >= 400 will fail
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
@@ -74,7 +75,8 @@ export async function request(
             currentAttempt++;
             await sleep(currentDelay);
             
-            currentDelay = Math.min(currentDelay * retryMultiplyer, maxRetryInterval);
+            const multiplyer = Math.max(retryMultiplyer, 1)
+            currentDelay = Math.min(currentDelay * multiplyer, maxRetryInterval);
         } finally {
             if (timeoutId) clearTimeout(timeoutId);
             if (externalSignal && onExternalAbort) externalSignal.removeEventListener('abort', onExternalAbort);

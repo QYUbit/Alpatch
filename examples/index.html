@@ -68,6 +68,10 @@
         button:active {
             transform: scale(0.98);
         }
+
+        #error-message {
+            color: red;
+        }
     </style>
 </head>
 <body>
@@ -81,19 +85,41 @@
         </div>
 
         <div x-data="{ count: 0 }" class="example">
-            <h2>Patch data</h2>
+            <h2>Patch state</h2>
             <button @click="$post('/increment')">Increment Count</button>
             <div>Count: <span x-text="count"></span></div>
         </div>
 
         <div x-data="{ name: 'Alice', age: 'unknowen' }" class="example">
-            <h2>Patch data manually</h2>
+            <h2>Patch state manually</h2>
             <button 
-                @click="{ age } = await $get('/age', { payload: { name }, autoPatchData: false })"
+                @click="{ scope: { age } } = await $get('/age', { payload: { name }, autoPatchState: false })"
             >
                 Get Age
             </button>
             <div x-text="`Name: ${name}, Age: ${age}`"></div>
+        </div>
+
+        <div x-data class="example">
+            <h2>Form</h2>
+            <form @submit.prevent="$post('/signin', { contentType: 'form' })">
+                <div>
+                    <label for="username">Enter username:</label>
+                    <input type="text" name="username">
+                </div>
+                <div>
+                    <label for="password">Enter password:</label>
+                    <input type="password" name="password">
+                </div>
+                <button>Sign In</button>
+                <div id="error-message"></div>
+            </form>
+        </div>
+
+        <div x-data class="example">
+            <h2>Using refs</h2>
+            <button @click="$get('/messageRef')">Show Message</button>
+            <div x-ref="message"></div>
         </div>
     </div>
 
