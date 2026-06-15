@@ -92,6 +92,16 @@ app.get('/messageRef', (req, res) => {
     res.send(patch);
 });
 
+app.get('/repeat', (req, res) => {
+    const patch = createPatch();
+    patch.patchHTML(
+        'repeated',
+        req.alpatch.text+req.alpatch.text,
+        'replaceInner'
+    );
+    res.send(patch);
+});
+
 app.listen(PORT, () => {
     console.log(`\nAlpine Patch Example Server`);
     console.log(`http://localhost:${PORT}`);

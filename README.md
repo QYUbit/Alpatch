@@ -196,8 +196,8 @@ function $get(
 
 ## Roadmap
 
+- redirects
 - testing
-- `x-alpatch` directive
 - JS API
 
 ## Development

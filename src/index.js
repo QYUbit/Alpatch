@@ -1,4 +1,6 @@
 import { patchRequest } from './alpatch.js';
+import { alpatchDirective } from './directive.js';
+import { patchElement } from './patch.js';
 
 export default function (Alpine) {
     Alpine.magic('get', (el) => async (url, options) => {
@@ -20,4 +22,22 @@ export default function (Alpine) {
     Alpine.magic('delete', (el) => async (url, options) => {
         return await patchRequest(Alpine, el, 'DELETE', url, options);
     });
+
+    Alpine.directive('alpatch', alpatchDirective);
+
+    Alpine.patchElement = (el, patch) => {
+        patchElement(Alpine, el, patch);
+    };
+
+    Alpine.patchScope = (el, patch) => {
+        patchScope(Alpine, el, patch);
+    };
+
+    Alpine.patchStore = (el, patch) => {
+        patchStore(Alpine, el, patch);
+    };
+
+    Alpine.patchRequest = async (el, method, url, options) => {
+        return await patchRequest(Alpine, el, method, options);
+    };
 }

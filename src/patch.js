@@ -13,7 +13,7 @@ export function patchElement(
         return;
     }
 
-    if (!html) {
+    if (html == null) {
         console.error('Invalid element patch: missing html content');
         return;
     }

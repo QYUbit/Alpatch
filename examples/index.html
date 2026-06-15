@@ -121,6 +121,17 @@
             <button @click="$get('/messageRef')">Show Message</button>
             <div x-ref="message"></div>
         </div>
+
+        <div x-data="{ text: '' }" class="example">
+            <h2>Alpatch directive</h2>
+            <input
+                type="text"
+                name="text"
+                x-alpatch.input="'/repeat'"
+                @input="text = $el.value"
+            >
+            <div id="repeated"></div>
+        </div>
     </div>
 
     <script type="module">
