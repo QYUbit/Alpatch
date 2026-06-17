@@ -1,6 +1,6 @@
 import { patchRequest } from './alpatch.js';
 import { alpatchDirective } from './directive.js';
-import { patchElement } from './patch.js';
+import { patchElement, patchScope, patchStore } from './patch.js';
 
 export default function (Alpine) {
     Alpine.magic('get', (el) => async (url, options) => {

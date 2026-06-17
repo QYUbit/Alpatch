@@ -1,3 +1,5 @@
+import { dispatch } from "./utils";
+
 export function patchElement(
     Alpine,
     el,
@@ -30,6 +32,9 @@ export function patchElement(
         }
         return;
     }
+
+    const cancelled = dispatch(el, 'alpatch:patch:element', { target, html, strategy });
+    if (cancelled) return;
 
     switch (strategy) {
         case 'morph':
@@ -82,6 +87,10 @@ export function patchScope(
     }
 
     const scope = Alpine.$data(el);
+
+    const cancelled = dispatch(el, 'alpatch:patch:scope', { scope, patch });
+    if (cancelled) return;
+
     mergePatch(scope, patch);
 }
 
@@ -106,6 +115,9 @@ export function patchStore(
             console.error(`Store "${storeName}" not found for patching`);
             continue;
         }
+
+        const cancelled = dispatch(el, 'alpatch:patch:store', { store, patch });
+        if (cancelled) continue;
 
         mergePatch(store, patch);
     }

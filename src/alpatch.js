@@ -1,5 +1,6 @@
 import { patchElement, patchScope, patchStore } from "./patch";
 import { request } from "./request";
+import { dispatch } from "./utils";
 
 const abortControllers = new WeakMap();
 
@@ -20,21 +21,23 @@ export async function patchRequest(
         // Request options
         headers = {},
         requestAbort = 'auto',
-        timeoutDuration = 5000,
+        timeoutDuration = 15_000,
         maxRetries = 5,
-        retryMultiplyer = 2,
+        retryMultiplier = 2,
         retryInterval = 2000,
         maxRetryInterval = 20_000,
         abortOnVisibilityChange,
 
         // Patch options
-        autoPatchState = true,
+        autoNavigate = true,
+        autoPatchElements = true,
+        autoPatchState = true
     } = {}
 ) {
     // Debounce
     const controller = requestAbort === 'auto' ? new AbortController() : requestAbort;
     if (requestAbort === 'auto') {
-        abortControllers.get(el)?.abort();
+        abortControllers.get(el)?.abort(new DOMException('', 'DebounceError'));
         abortControllers.set(el, controller);
     }
 
@@ -49,7 +52,7 @@ export async function patchRequest(
         timeoutDuration,
         maxRetries,
         retryInterval,
-        retryMultiplyer,
+        retryMultiplier,
         maxRetryInterval,
         abortOnVisibilityChange,
     };
@@ -63,7 +66,7 @@ export async function patchRequest(
     if (contentType === 'json') {
         const requestPayload = payloadSource === 'auto'
             ? payload ?? Alpine.$data(el)
-            : { ...Alpine.$data(el), ...(payload ?? {}) }
+            : { ...Alpine.$data(el), ...(payload ?? {}) };
         
         const body = JSON.stringify(requestPayload);
 
@@ -112,14 +115,36 @@ export async function patchRequest(
 
     requestUrl.search = queryParams.toString();
 
-    const response = await request(requestUrl.toString(), req);
+    const response = await request(el, requestUrl.toString(), req);
 
-    if (typeof response !== 'object' || response === null) {
-        console.error("Invalid response format: response has to be an object");
-        return;
+    if (response.navigation && autoNavigate) {
+        const newUrl = response.navigation.url;
+
+        const cancelled = dispatch(
+            el,
+            'alpatch:navigate',
+            {
+                url: newUrl,
+                redirect: response.navigation.redirect,
+                replace: response.navigation.replace
+            }
+        );
+        
+        if (!cancelled) {
+            if (response.navigation.redirect) {
+                location.href = newUrl;
+                return;
+            }
+
+            if (response.navigation.replace) {
+                history.replaceState(null, '', newUrl);
+            } else {
+                history.pushState(null, '', newUrl);
+            }
+        }
     }
 
-    if (response.elements) {
+    if (response.elements && autoPatchElements) {
         if (Array.isArray(response.elements)) {
             for (const elementPatch of response.elements) {
                 patchElement(Alpine, el, elementPatch);

@@ -1,17 +1,21 @@
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+import { dispatch, sleep } from "./utils";
 
 export async function request(
+    el,
     url,
     {
         timeoutDuration,
         maxRetries,
         retryInterval,
         maxRetryInterval,
-        retryMultiplyer,
+        retryMultiplier,
         abortOnVisibilityChange,
         ...fetchOptions
     } = {}
 ) {
+    const requestCancelled = dispatch(el, 'alpatch:request', { url, options: fetchOptions });
+    if (requestCancelled) return {};
+
     let currentAttempt = 0;
     let currentDelay = retryInterval;
 
@@ -20,7 +24,7 @@ export async function request(
         const { signal: externalSignal } = fetchOptions;
 
         if (externalSignal?.aborted) {
-            throw externalSignal.reason || new DOMException('The user aborted a request.', 'AbortError');
+            throw externalSignal.reason || new DOMException('The user aborted the request.', 'AbortError');
         }
 
         let timeoutId = null;
@@ -50,23 +54,56 @@ export async function request(
         }
 
         try {
+            // 3xx request will be handled by fetch()
             const response = await fetch(url, {
                 ...fetchOptions,
-                signal: internalController.signal
+                signal: internalController.signal,
             });
 
-            // All responses with a status >= 400 will fail
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+            if (response.status === 204) {
+                return {};
             }
 
-            return await response.json();
+            if (!response.headers.get('Content-Type')?.includes('application/json')) {
+                throw new DOMException('Response rejected: unsupported content type (expected application/json)', 'ProtocolError');
+            }
+
+            const data = await response.json();
+            
+            if (typeof data !== 'object' || data === null) {
+                throw new DOMException('Response rejected: invalid response format (expected JSON object)', 'ProtocolError');
+            }
+            if (data.protocol !== 'alpatch') {
+                throw new DOMException('Response rejected: invalid response format (expected "alpatch" protocol field)', 'ProtocolError');
+            }
+
+            const isErrorCode = response.status >= 400 && response.status < 600;
+
+            const cancelled = dispatch(el, 'alpatch:response', { response, data })
+                || dispatch(el, `alpatch:response:${isErrorCode ? 'error' : 'ok'}`, { response, data });
+            if (cancelled) {
+                return {};
+            }
+
+            return data;
 
         } catch (error) {
             const isAbort = error.name === 'AbortError';
             const isTimeout = error.name === 'TimeoutError' || error.message === 'Request timeout';
+            const isDebounce = error.name === 'DebounceError';
+            const isProtocolError = error.name === 'ProtocolError';
 
-            if ((isAbort && !isTimeout) || currentAttempt >= maxRetries) {
+            if (isDebounce) return {};
+
+            // Throw immediatly if error is 'natural' or maxRetries has been reached 
+            if ((isAbort && !isTimeout) || isProtocolError || currentAttempt >= maxRetries) {
+                dispatch(el, 'alpatch:failed', { message: error.message, name: error.name });
+                throw error;
+            }
+
+            const cancelled = dispatch(el, 'alpatch:retrying', { message: error.message, name: error.name });
+            if (cancelled) {
+                dispatch(el, 'alpatch:failed', { message: error.message, name: error.name });
                 throw error;
             }
 
@@ -75,7 +112,7 @@ export async function request(
             currentAttempt++;
             await sleep(currentDelay);
             
-            const multiplyer = Math.max(retryMultiplyer, 1)
+            const multiplyer = Math.max(retryMultiplier, 1)
             currentDelay = Math.min(currentDelay * multiplyer, maxRetryInterval);
         } finally {
             if (timeoutId) clearTimeout(timeoutId);

@@ -1,6 +1,19 @@
 class Patch {
     constructor() {
+        this.protocol = "alpatch";
         this.elements = [];
+    }
+
+    redirect(url) {
+        this.navigation = { url, redirect: true };
+    }
+
+    pushHistory(url) {
+        this.navigation = { url };
+    }
+
+    replaceHistory(url) {
+        this.navigation = { url, replace: true };
     }
 
     patchHTML(id, html, strategy = 'morph') {
@@ -45,8 +58,9 @@ class Patch {
         this.store = { ...(this.store ?? {}), ...obj };
     }
 
-    toSting() {
-        return JSON.stringify(this);
+    send(res, status = 200) {
+        res.status(status);
+        res.json(this);
     }
 }
 
@@ -57,6 +71,8 @@ function createPatch() {
 function alpatchMiddleware(req, res, next) {
     if (req.query.alpatch) {
         req.alpatch = JSON.parse(req.query.alpatch);
+        res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+        res.removeHeader('ETag');
     }
     next();
 }

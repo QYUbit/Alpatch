@@ -1,13 +1,14 @@
 # Alpatch
 
-Alpatch is an Alpine.js plugin for making HTTP requests and patching application state and the DOM, similar to htmx and datastar.
+Alpatch is an Alpine.js plugin for making HTTP requests to patch application state and the DOM, similar to htmx and datastar.
 
 ## Features
 
 - 5 magic methods `$get`, `$post`, `$put`, `$patch` and `$delete`
+- 1 directive `x-alpatch`
 - DOM morphing with `@alpinejs/morph`
 - Backend agnostic -- Use any server side language and templating engine
-- Form support
+- 2.77 KB bundle size (minified + gziped)
 
 ## Installation
 
@@ -34,7 +35,16 @@ Or use a CDN
 <script defer src="https://cdn.jsdelivr.net/npm/alpatch@latest"></script>
 ```
 
-Note: if you want to use DOM morphing you have to include the `@alpinejs/morph` plugin
+Note: If you want to use DOM morphing you have to include the `@alpinejs/morph` plugin
+
+## How it works
+
+1. Issue a request, using one of the 5 [magics](#request-magics) or the `x-alpatch` [directive](#directive)
+2. Alpatch collects all values of the current scope / values of the selected form
+3. Alpatch encodes those values (`application/json` or `application/x-www-form-urlencoded`)
+and sends a HTTP request to your backend
+4. Your backend responds with an [Alpatch Response](#alpatch-response-protocol)
+5. Alpatch receives the response and updates state, DOM and history accordingly
 
 ## Usage
 
@@ -110,11 +120,44 @@ Patch state
 
 </details>
 
+---
+
+Using forms
+
+```html
+<form @submit.prevent="$post('/signin', { contentType: 'form' })">
+    <input name="name" placeholder="Enter your name...">
+    <button role="submit">Submit</button>
+</form>
+```
+
+---
+
+Using the `x-alpatch` directive
+
+```html
+<div x-data>
+    <button x-alpatch:post="/example">Do something</button>
+</div>
+```
+
 ## Alpatch Response Protocol
 
 ```javascript
 {
-    // Optional
+    // Alpatch protocol identifier (required)
+    "protocol": "alpatch",
+    // Contains navigation info
+    "navigation": {
+        // The URL (required). Uses the history API to set URL.
+        "url": "/example",
+        // When set to true, all the patches will be ignored
+        // and window.location.href is set to "url"
+        "redirect": false,
+        // Wherher history.replaceState() should be used instead of
+        // history.pushState()
+        "replace": false
+    },
     // Array of element-patches
     "elements": [
         {
@@ -123,21 +166,18 @@ Patch state
             "selector": "#some-id",
             // Uses the $refs magic to find the target.
             "ref": "refName",
-            // The html
+            // The html (required)
             "html": "<h1>Heading</h1>",
-            // Optional
             // One of those options (replace is default):
             // morph, replace, replaceInner, append, prepend, before, after
             "strategy": "replace"
         }
     ],
-    // Optional
     // State-patches will be morphed into their relative x-data stacks
     // or into the closest x-data scope in case no fitting value is found.
     "scope": {
         "value": "foobar"
     },
-    // Optional
     // State-patches to global stores.
     // Each value will be morphed into the respective store of the corresponding Alpine store. 
     "store": {
@@ -148,7 +188,11 @@ Patch state
 }
 ```
 
+Note: There are no server side SDKs yet. You have to create the alpatch response by yourself.
+
 ## API Reference
+
+### Request magics
 
 ```javascript
 // Method can be get, post, put, patch and delete
@@ -176,10 +220,10 @@ function $get(
         // Custom headers
         headers = {},
         requestAbort = 'auto',
-        timeoutDuration = 5000,
+        timeoutDuration = 15_000,
         maxRetries = 5,
         // Increses the retryInterval on each miss.
-        retryMultiplyer = 2,
+        retryMultiplier = 2,
         retryInterval = 2000,
         maxRetryInterval = 20_000,
         // Whether or not the request should be abortet on window / app / tab change
@@ -188,17 +232,32 @@ function $get(
 
         // === Patch options ===
 
+        // Whether or not redirects and history changes should be executed
+        autoNavigate = true,
+        // Whether or not element patches should be applied
+        autoPatchElements = true,
         // Whether or not scope or store patches should be merged
         autoPatchState = true,
     }
 ): Promise<any> // Returns a promise with the Alpatch response object
 ```
 
+### Directive
+
+```
+x-alpatch:get.input="https://example.com"
+           |    |              |
+       method  event          url
+```
+
+- Default method is "get".
+- Default event is "submit" for `<form>`s, "change" for `<input>`, `<textarea>` and `<select>` elements, and "click" for everything else.
+- If the attribute value is left out, `x-alpatch` uses the `href` attribute.
+
 ## Roadmap
 
-- redirects
 - testing
-- JS API
+- more consistent code
 
 ## Development
 

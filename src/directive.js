@@ -17,14 +17,14 @@ export function alpatchDirective(
         );
 
     const listener = (e) => {
-        const isFormElement = el instanceof HTMLFormElement
+        const isFormElement = el instanceof HTMLFormElement;
         if (isFormElement || el instanceof HTMLAnchorElement) {
             e.preventDefault();
         }
 
         if (!expression) return;
 
-        const method = (value ?? 'get').toUpperCase()
+        const method = (value ?? 'get').toUpperCase();
         const url = evaluate(expression);
 
         Alpine.nextTick(() => {

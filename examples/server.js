@@ -11,6 +11,7 @@ const { createPatch, alpatchMiddleware } = require('./exampleSdk');
 const app = express();
 const PORT = 3000;
 
+app.disable('etag');
 app.use(express.static(path.join(__dirname, '..')));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -20,6 +21,10 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
+app.get('/about', (req, res) => {
+    res.sendFile(path.join(__dirname, 'about.html'));
+});
+
 app.get('/message', (req, res) => {
     const patch = createPatch();
     patch.patchHTML(
@@ -27,13 +32,13 @@ app.get('/message', (req, res) => {
         `<p>Secret Message</p>`,
         'replaceInner'
     );
-    res.send(patch);
+    patch.send(res);
 });
 
 app.post('/increment', (req, res) => {
     const patch = createPatch();
     patch.patchValue('count', req.body.count + 1);
-    res.send(patch);
+    patch.send(res);
 });
 
 app.get('/age', (req, res) => {
@@ -44,7 +49,7 @@ app.get('/age', (req, res) => {
     };
     const patch = createPatch();
     patch.patchValue('age', persons[req.alpatch.name]);
-    res.send(patch);
+    patch.send(res);
 });
 
 app.post('/signin', (req, res) => {
@@ -61,25 +66,26 @@ app.post('/signin', (req, res) => {
             'User not found',
             'replaceInner'
         );
-        res.send(patch);
+        patch.send(res, 404);
         return;
     }
 
     if (user.password === req.body.password) {
+        patch.pushHistory(`?user=${user.username}`);
         patch.patchHTMLBySelector(
             'form',
             `<div>Hello, ${user.username}</div>`,
             'replace'
         );
+        patch.send(res);
     } else {
         patch.patchHTML(
             'error-message',
             'Wrong password',
             'replaceInner'
         );
+        patch.send(res, 400);
     }
-
-    res.send(patch);
 });
 
 app.get('/messageRef', (req, res) => {
@@ -89,7 +95,7 @@ app.get('/messageRef', (req, res) => {
         `A Message`,
         'replaceInner'
     );
-    res.send(patch);
+    patch.send(res);
 });
 
 app.get('/repeat', (req, res) => {
@@ -99,7 +105,13 @@ app.get('/repeat', (req, res) => {
         req.alpatch.text+req.alpatch.text,
         'replaceInner'
     );
-    res.send(patch);
+    patch.send(res);
+});
+
+app.get('/toAbout', (req, res) => {
+    const patch = createPatch();
+    patch.redirect('/about');
+    patch.send(res);
 });
 
 app.listen(PORT, () => {
