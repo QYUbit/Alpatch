@@ -156,7 +156,9 @@ Using the `x-alpatch` directive
         "redirect": false,
         // Wherher history.replaceState() should be used instead of
         // history.pushState()
-        "replace": false
+        "replace": false,
+        // Sets the document title
+        "title": "Page Name"
     },
     // Array of element-patches
     "elements": [

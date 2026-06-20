@@ -141,6 +141,10 @@ export async function patchRequest(
             } else {
                 history.pushState(null, '', newUrl);
             }
+
+            if (response.navigation.title) {
+                document.title = response.navigation.title;
+            }
         }
     }
 

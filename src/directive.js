@@ -22,10 +22,8 @@ export function alpatchDirective(
             e.preventDefault();
         }
 
-        if (!expression) return;
-
         const method = (value ?? 'get').toUpperCase();
-        const url = evaluate(expression);
+        const url = (expression || el.getAttribute('href')) ?? '';
 
         Alpine.nextTick(() => {
             patchRequest(
