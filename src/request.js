@@ -1,7 +1,4 @@
-import { dispatch, sleep } from "./utils";
-
 export async function request(
-    el,
     url,
     {
         timeoutDuration,
@@ -13,9 +10,6 @@ export async function request(
         ...fetchOptions
     } = {}
 ) {
-    const requestCancelled = dispatch(el, 'alpatch:request', { url, options: fetchOptions });
-    if (requestCancelled) return {};
-
     let currentAttempt = 0;
     let currentDelay = retryInterval;
 
@@ -60,49 +54,17 @@ export async function request(
                 signal: internalController.signal,
             });
 
-            if (response.status === 204) {
-                return {};
-            }
-
-            if (!response.headers.get('Content-Type')?.includes('application/json')) {
-                throw new DOMException('Response rejected: unsupported content type (expected application/json)', 'ProtocolError');
-            }
-
-            const data = await response.json();
-            
-            if (typeof data !== 'object' || data === null) {
-                throw new DOMException('Response rejected: invalid response format (expected JSON object)', 'ProtocolError');
-            }
-            if (data.protocol !== 'alpatch') {
-                throw new DOMException('Response rejected: invalid response format (expected "alpatch" protocol field)', 'ProtocolError');
-            }
-
-            const isErrorCode = response.status >= 400 && response.status < 600;
-
-            const cancelled = dispatch(el, 'alpatch:response', { response, data })
-                || dispatch(el, `alpatch:response:${isErrorCode ? 'error' : 'ok'}`, { response, data });
-            if (cancelled) {
-                return {};
-            }
-
-            return data;
+            return response;
 
         } catch (error) {
             const isAbort = error.name === 'AbortError';
             const isTimeout = error.name === 'TimeoutError' || error.message === 'Request timeout';
             const isDebounce = error.name === 'DebounceError';
-            const isProtocolError = error.name === 'ProtocolError';
 
             if (isDebounce) return {};
 
             // Throw immediatly if error is 'natural' or maxRetries has been reached 
-            if ((isAbort && !isTimeout) || isProtocolError || currentAttempt >= maxRetries) {
-                dispatch(el, 'alpatch:failed', { message: error.message, name: error.name });
-                throw error;
-            }
-
-            const cancelled = dispatch(el, 'alpatch:retrying', { message: error.message, name: error.name });
-            if (cancelled) {
+            if ((isAbort && !isTimeout) || currentAttempt >= maxRetries) {
                 dispatch(el, 'alpatch:failed', { message: error.message, name: error.name });
                 throw error;
             }

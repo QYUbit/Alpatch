@@ -1,23 +1,26 @@
-import { patchElement, patchScope, patchStore } from "./patch";
-import { request } from "./request";
-import { dispatch } from "./utils";
-
 const abortControllers = new WeakMap();
 
-const hasRequestBody = (method) => method !== 'GET' && method !== 'HEAD';
+const hasRequestBody = (method) => method !== 'GET' && method !== 'DELETE';
 
-export async function patchRequest(
+const resolvePayloadData = (Alpine, el, dataSource) => {
+    if (Array.isArray(dataSource)) {
+        for (const component of dataSource) {
+            
+        }
+    }
+
+    return {
+        contentType,
+    }
+}
+
+export async function performAlpatchRequest(
     Alpine,
     el,
     method,
     url,
+    dataSource = 'scope',
     {
-        // Source options
-        contentType = 'json',
-        form,
-        payload,
-        payloadSource = 'auto',
-
         // Request options
         headers = {},
         requestAbort = 'auto',
