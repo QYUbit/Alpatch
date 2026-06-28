@@ -1,26 +1,39 @@
+import Alpine from "alpinejs";
+import { patchElement, patchScope } from "./patch";
+import { request } from "./request";
+
 const abortControllers = new WeakMap();
 
 const hasRequestBody = (method) => method !== 'GET' && method !== 'DELETE';
 
-const resolvePayloadData = (Alpine, el, dataSource) => {
-    if (Array.isArray(dataSource)) {
-        for (const component of dataSource) {
-            
-        }
-    }
-
-    return {
-        contentType,
-    }
-}
-
-export async function performAlpatchRequest(
+export async function performRequest(
     Alpine,
     el,
     method,
     url,
-    dataSource = 'scope',
+    options = {}
+) {
+    // Debounce
+    const controller = requestAbort === 'auto' ? new AbortController() : requestAbort;
+    if (requestAbort === 'auto') {
+        abortControllers.get(el)?.abort(new DOMException('', 'DebounceError'));
+        abortControllers.set(el, controller);
+    }
+
+    const [reqUrl, reqOptions] = buildRequest(Alpine, el, method, url, options);
+
+    return await request(reqUrl, reqOptions);
+}
+
+function buildRequest(
+    Alpine,
+    el,
+    method,
+    url,
     {
+        // Source options
+        data: dataSource = 'scope',
+
         // Request options
         headers = {},
         requestAbort = 'auto',
@@ -30,20 +43,8 @@ export async function performAlpatchRequest(
         retryInterval = 2000,
         maxRetryInterval = 20_000,
         abortOnVisibilityChange,
-
-        // Patch options
-        autoNavigate = true,
-        autoPatchElements = true,
-        autoPatchState = true
-    } = {}
-) {
-    // Debounce
-    const controller = requestAbort === 'auto' ? new AbortController() : requestAbort;
-    if (requestAbort === 'auto') {
-        abortControllers.get(el)?.abort(new DOMException('', 'DebounceError'));
-        abortControllers.set(el, controller);
     }
-
+) {
     if (!url?.length) {
         throw new Error('No URL provided for patch request');
     }
@@ -66,10 +67,11 @@ export async function performAlpatchRequest(
     const requestUrl = new URL(url, document.baseURI);
     const queryParams = new URLSearchParams(requestUrl.search);
 
-    if (contentType === 'json') {
-        const requestPayload = payloadSource === 'auto'
-            ? payload ?? Alpine.$data(el)
-            : { ...Alpine.$data(el), ...(payload ?? {}) };
+    // Check for null?
+    if (typeof dataSource === 'object' || dataSource === 'scope') {
+        const requestPayload = dataSource === 'scope'
+            ? Alpine.$data(el)
+            : dataSource;
         
         const body = JSON.stringify(requestPayload);
 
@@ -80,8 +82,8 @@ export async function performAlpatchRequest(
             queryParams.set("alpatch", body);
         }
 
-    } else if (contentType === 'form') {
-        const formEl = form ?? el.closest('form');
+    } else if (dataSource instanceof HTMLFormElement || dataSource === 'form') {
+        const formEl = dataSource === 'form' ? el.closest('form') : dataSource;
         if (!(formEl instanceof HTMLFormElement)) {
             throw new Error(`Form element not found`);
         }
@@ -113,61 +115,85 @@ export async function performAlpatchRequest(
         }
 
     } else {
-        throw new Error(`Invalid contentType "${contentType}"`);
+        throw new Error(`Invalid dataSource`);
     }
 
     requestUrl.search = queryParams.toString();
 
-    const response = await request(el, requestUrl.toString(), req);
+    return [requestUrl.toString(), req];
+}
 
-    if (response.navigation && autoNavigate) {
-        const newUrl = response.navigation.url;
+export function processRequest(Alpine, reqPromise, cb) {
+    const responseObj = Alpine.reactive({
+        pending: true,
+    });
 
-        const cancelled = dispatch(
-            el,
-            'alpatch:navigate',
-            {
-                url: newUrl,
-                redirect: response.navigation.redirect,
-                replace: response.navigation.replace
-            }
-        );
-        
-        if (!cancelled) {
-            if (response.navigation.redirect) {
-                location.href = newUrl;
-                return;
-            }
+    reqPromise
+        .then(async res => {
+            await cb?.(res);
 
-            if (response.navigation.replace) {
-                history.replaceState(null, '', newUrl);
-            } else {
-                history.pushState(null, '', newUrl);
-            }
+            responseObj.ok = res.ok;
+            responseObj.status = res.status;
+            responseObj.redirected = res.redirected;
+            responseObj.headers = res.headers;
+            responseObj.body = res.body;
+            responseObj.failed = false;
+            responseObj.pending = false;
+        })
+        .catch(err => {
+            responseObj.error = err;
+            responseObj.failed = true;
+            responseObj.pending = false;
+        });
 
-            if (response.navigation.title) {
-                document.title = response.navigation.title;
+    return responseObj;
+}
+
+export async function processResponse(
+    Alpine,
+    res,
+    {
+        target
+    }
+) {
+    const ct = res.headers['Content-Type'];
+
+    if (ct.startsWith('text/html')) {
+        const targetEl = target ?? el;
+        const html = await res.text();
+        patchElement(Alpine, targetEl, html, );
+
+    } else if (ct.startsWith('application/json')) {
+        const targetEl = target ?? el;
+        const patch = await res.json();
+        patchScope(Alpine, targetEl, patch);
+
+    } else if (ct.startsWith('application/alpatch+json')) {
+        const schema = await res.json();
+
+        if (schema.elements?.length) {
+            for (const elementPatch of schema.elements) {
+                const targetEl = (
+                    elementPatch.selector
+                        ? document.querySelector(elementPatch.selector)
+                        : undefined
+                )
+                ?? target
+                ?? el;
+                
+                patchElement(Alpine, targetEl, elementPatch.html, elementPatch.strategy ?? 'replace')
             }
         }
-    }
 
-    if (response.elements && autoPatchElements) {
-        if (Array.isArray(response.elements)) {
-            for (const elementPatch of response.elements) {
-                patchElement(Alpine, el, elementPatch);
+        if (schema.scopes?.length) {
+            for (const scopePatch of schema.scopes) {
+                
             }
-        } else {
-            console.error(`Invalid response format: "elements" property has to be an array`)
         }
-    }
 
-    if (response.scope && autoPatchState) {
-        patchScope(Alpine, el, response.scope);
-    }
-    
-    if (response.store && autoPatchState) {
-        patchStore(Alpine, el, response.store);
-    }
+        if (schema.stores?.length) {
+        }
+    } else {
 
-    return response;
+    }
 }
