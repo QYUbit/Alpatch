@@ -1,6 +1,7 @@
 import Alpine from "alpinejs";
 import { patchElement, patchScope } from "./patch";
 import { request } from "./request";
+import { dispatch } from "./utils";
 
 const abortControllers = new WeakMap();
 
@@ -21,6 +22,11 @@ export async function performRequest(
     }
 
     const [reqUrl, reqOptions] = buildRequest(Alpine, el, method, url, options);
+
+    dispatch(el, 'alpatch:request', {
+        url: reqUrl,
+        options: reqOptions,
+    });
 
     return await request(reqUrl, reqOptions);
 }
@@ -128,10 +134,12 @@ export function processRequest(Alpine, reqPromise, cb) {
         pending: true,
     });
 
+    dispatch(el, 'alpatch:request-sent', {
+        response: reqPromise
+    });
+
     reqPromise
         .then(async res => {
-            await cb?.(res);
-
             responseObj.ok = res.ok;
             responseObj.status = res.status;
             responseObj.redirected = res.redirected;
@@ -139,11 +147,21 @@ export function processRequest(Alpine, reqPromise, cb) {
             responseObj.body = res.body;
             responseObj.failed = false;
             responseObj.pending = false;
+
+            dispatch(el, 'alpatch:response', {
+                response: res
+            });
+
+            await cb?.(res);
         })
         .catch(err => {
             responseObj.error = err;
             responseObj.failed = true;
             responseObj.pending = false;
+
+            dispatch(el, 'alpatch:error', {
+                error: err
+            });
         });
 
     return responseObj;
